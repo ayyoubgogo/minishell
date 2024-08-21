@@ -6,66 +6,82 @@
 /*   By: agaougao <agaougao@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/02 14:32:39 by agaougao          #+#    #+#             */
-/*   Updated: 2024/06/02 16:44:25 by agaougao         ###   ########.fr       */
+/*   Updated: 2024/08/15 20:54:04 by agaougao         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "../include/minishell.h"
+#include <minishell.h>
 
-t_list *turn_to_list(c_cmd command)
+void	sq_handler(int sig)
 {
-    t_tmp *tmp;
-    t_list *new;
-    t_list *head;
-    int i;
-
-    head = NULL;
-    i = 0;
-    while(command.cmd[i])
-    {
-        tmp = malloc(sizeof(t_tmp));
-        tmp->cmd = command.cmd;
-        new = ft_lstnew(tmp);
-        ft_lstadd_back(&head , new);
-        i++;
-    }
-    return(head);
-}
-void run_builting(char **str,t_minishell *shell, int i)
-{
-    printf("%d\n",i);
-    if(ft_strncmp(str[i],"pwd", 3) == 0)
-        pwd(str);
-    if(ft_strncmp(str[i],"exit", 4) == 0)
-        miniexit(str);
-    if(ft_strncmp(str[i],"cd", 2) == 0)
-        cd(str,i);
-    if(ft_strncmp(str[i],"echo", 4) == 0)
-        echo(str,i);
-    if(ft_strncmp(str[i], "env", 3) == 0)
-        mini_env(shell->env);
-    if(ft_strncmp(str[i],"export", 5) == 0)
-        export(str,shell->env,i);
-    if(ft_strncmp(str[i],"unset", 3) == 0)
-        unset(str, shell,i);
+	(void)sig;
+	printf(" quit (core dumped)\n");
 }
 
-void pipex(c_cmd cmd , t_minishell *shell)
+void	dup_to_out(t_command *command)
 {
-    t_list *list;
-    char **str;
-    c_cmd *command;
-    int i;
+	dup2(command->redirections->fd, 1);
+	close(command->redirections->fd);
+}
 
-    list = turn_to_list(cmd);
-    i = 0;
-    while(list)
-    {
-        str = ((t_tmp *)list->content)->cmd;
-        if(check_builtin(str[i]))
-            run_builting(str ,shell, i);
-        // else if()
-        list = list->next;
-        i++;
-    }
+void	dup_red(t_command *command)
+{
+	t_token	*red;
+
+	if (command->redirections)
+	{
+		while (command->redirections)
+		{
+			red = (t_token *)command->redirections->content;
+			if (red->token == REDIRECT_INPUT || red->token == HEREDOC)
+			{
+				if (access(red->word, F_OK) == -1
+					&& red->token == REDIRECT_INPUT)
+					exit(1);
+				else
+				{
+					dup2(command->redirections->fd, 0);
+					close(command->redirections->fd);
+				}
+			}
+			else if (red->token == TRUNCATE || red->token == APPEND)
+				dup_to_out(command);
+			command->redirections = command->redirections->next;
+		}
+	}
+}
+
+void	pipe_hel(t_command *command, t_minishell *shell)
+{
+	dup_red(command);
+	check(shell, command);
+	exit(g_ec);
+}
+
+void	pipex(t_minishell *shell, t_command *command, t_command *nex_command)
+{
+	int	fd[2];
+
+	pipe(fd);
+	shell->commands->pid = fork();
+	sgl(shell->commands->pid);
+	signal(SIGQUIT, &sq_handler);
+	if (shell->commands->pid == 0)
+	{
+		if (check_red(shell, command) == 1)
+			exit(g_ec);
+		if (nex_command)
+		{
+			dup2(fd[1], 1);
+			close(fd[0]);
+			close(fd[1]);
+		}
+		pipe_hel(command, shell);
+	}
+	if (nex_command)
+	{
+		dup2(fd[0], 0);
+		close(fd[1]);
+		close(fd[0]);
+	}
 }

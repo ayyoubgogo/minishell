@@ -3,28 +3,29 @@
 /*                                                        :::      ::::::::   */
 /*   libft.h                                            :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: marvin <marvin@student.42.fr>              +#+  +:+       +#+        */
+/*   By: agaougao <agaougao@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/11/02 14:00:43 by agaougao          #+#    #+#             */
-/*   Updated: 2024/05/24 15:14:05 by marvin           ###   ########.fr       */
+/*   Updated: 2024/08/12 16:27:38 by hmouhib          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef LIBFT_H
 # define LIBFT_H
+
 # include <stdlib.h>
 # include <unistd.h>
 # include <string.h>
-
-# include <sys/types.h>
-# include <sys/stat.h>
-# include <fcntl.h> 
 # include <stdint.h>
+# include <gcollector.h>
 
 typedef struct s_list
 {
+	int				fd;
+	int				pid;
 	void			*content;
 	struct s_list	*next;
+	struct s_list	*prev;
 }	t_list;
 
 // libc functions :)
@@ -74,5 +75,50 @@ void	ft_lstdelone(t_list *lst, void (*del)(void*));
 void	ft_lstiter(t_list *lst, void (*f)(void *));
 t_list	*ft_lstlast(t_list *lst);
 int		ft_lstsize(t_list *lst);
+
+// garbage collected :)
+char	*ftgc_strtrim(
+			char const *s1,
+			char const *set,
+			t_gcollector *collector
+			);
+void	*ftgc_calloc(
+			size_t s,
+			size_t size,
+			t_gcollector *collector
+			);
+t_list	*ftgc_lstnew(
+			void *content,
+			t_gcollector *collector
+			);
+char	*ftgc_itoa(
+			int n,
+			t_gcollector *collector
+			);
+char	*ftgc_substr(
+			char const *s,
+			unsigned int start,
+			size_t len,
+			t_gcollector *collector
+			);
+char	*ftgc_strdup(
+			const char *s,
+			t_gcollector *collector
+			);
+char	*ftgc_strmapi(
+			char const *s,
+			char (*f)(unsigned int, char),
+			t_gcollector *collector
+			);
+char	*ftgc_strjoin(
+			char const *s1,
+			char const *s2,
+			t_gcollector *collector
+			);
+char	**ftgc_split(
+			char const *s,
+			char c,
+			t_gcollector *collector
+			);
 
 #endif
